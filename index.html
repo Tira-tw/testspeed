@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>test speed</title>
+    <title>TEST Speed</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -25,29 +25,35 @@
         }
         h2 { margin: 0 0 10px 0; color: #fff; font-size: 18px; letter-spacing: 1px; }
 
-        /* 指針雙環儀表排版 */
-        .gauge-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
+        /* 錶盤與數位大字並排容器 */
         .gauge-card {
             background: #1a233a;
-            padding: 8px;
+            padding: 12px;
             border-radius: 8px;
             border: 1px solid #283548;
             display: flex;
+            align-items: center;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+        .gauge-title { font-size: 12px; color: #8a99ad; margin-bottom: 5px; text-align: center; }
+        canvas.analog-gauge { width: 160px; height: 160px; }
+        
+        /* 旁邊的數位大時速顯示 */
+        .digital-display {
+            display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            background: #0b0f19;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #283548;
+            min-width: 110px;
         }
-        .gauge-title { font-size: 11px; color: #8a99ad; margin-bottom: 2px; }
-        canvas.analog-gauge {
-            width: 140px;
-            height: 140px;
-        }
+        .digital-value { font-size: 38px; font-weight: bold; color: #ff0055; line-height: 1; }
+        .digital-unit { font-size: 12px; color: #8a99ad; margin-top: 5px; }
 
-        /* 數據面板 */
         .data-panel {
             text-align: left;
             background: #1a233a;
@@ -62,7 +68,6 @@
             gap: 5px;
         }
 
-        /* 設定與按鈕 */
         .config-box {
             background: #1a233a;
             padding: 8px;
@@ -96,8 +101,8 @@
         }
         button:active { background: #00b386; transform: scale(0.98); }
         button.secondary { background: #283548; color: #00ffcc; border: 1px solid #00ffcc; }
+        button.danger { background: #ff0055; color: #fff; }
 
-        /* 圖表與歷史 */
         .chart-container {
             background: #1a233a;
             padding: 8px;
@@ -117,36 +122,62 @@
             color: #94a3b8;
         }
         .history-title { font-weight: bold; color: #fff; margin-bottom: 3px; }
+
+        /* 結算彈窗 Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+        .modal-content {
+            background: #131b2e;
+            border: 2px solid #00ffcc;
+            padding: 20px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.4);
+        }
+        .modal-title { font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 15px; }
+        .modal-stats { text-align: left; background: #1a233a; padding: 12px; border-radius: 6px; font-size: 14px; margin-bottom: 15px; color: #cbd5e1; }
+        .modal-stats div { margin-bottom: 8px; }
+        .modal-stats div:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>test speed</h2>
+    <h2>TEST SPEED</h2>
 
-    <!-- 測速區間設定 -->
     <div class="config-box">
         <span>測驗目標區間:</span>
         <select id="target-mode">
             <option value="60">0 - 60 KM/H</option>
             <option value="100" selected>0 - 100 KM/H</option>
             <option value="150">0 - 150 KM/H</option>
+            <option value="200">0 - 200 KM/H</option>
         </select>
     </div>
     
-    <!-- 雙指針儀表盤 -->
-    <div class="gauge-grid">
-        <div class="gauge-card">
-            <div class="gauge-title">GPS SPEED (KM/H)</div>
-            <canvas id="speedGauge" class="analog-gauge" width="140" height="140"></canvas>
+    <!-- 錶盤與旁邊數位數字並排 -->
+    <div class="gauge-card">
+        <div>
+            <div class="gauge-title">GPS SPEED</div>
+            <canvas id="speedGauge" class="analog-gauge" width="160" height="160"></canvas>
         </div>
-        <div class="gauge-card">
-            <div class="gauge-title">EST. RPM</div>
-            <canvas id="rpmGauge" class="analog-gauge" width="140" height="140"></canvas>
+        <div class="digital-display">
+            <div class="gauge-title">SPEED</div>
+            <div class="digital-value" id="digital-speed">0.0</div>
+            <div class="digital-unit">KM/H</div>
         </div>
     </div>
 
-    <!-- 數據面板 -->
     <div class="data-panel">
         <div>GPS: <span id="gps-status" style="color: #f59e0b;">就緒</span></div>
         <div>G值: <span id="g-value">0.00</span> G</div>
@@ -157,97 +188,140 @@
     <div class="btn-group">
         <button id="perm-btn" class="secondary">授權感應器</button>
         <button id="start-btn">開始測驗</button>
+        <button id="stop-btn" class="danger" style="display:none;">手動停止</button>
     </div>
 
-    <!-- 加速曲線圖 -->
     <div class="chart-container">
         <canvas id="speedChart" width="400" height="120"></canvas>
     </div>
 
-    <!-- 歷史紀錄 -->
     <div class="history-box">
         <div class="history-title">歷史性能成績</div>
         <div id="history-list">尚無紀錄</div>
     </div>
 </div>
 
+<!-- 結算彈窗 Modal -->
+<div id="result-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-title">🏁 測驗結算成績</div>
+        <div class="modal-stats">
+            <div>測驗區間: <span id="res-target" style="color:#00ffcc; font-weight:bold;">0-100</span></div>
+            <div>耗時秒數: <span id="res-time" style="color:#ff0055; font-weight:bold;">0.00</span> 秒</div>
+            <div>最高時速: <span id="res-speed" style="color:#fff;">0.0</span> KM/H</div>
+        </div>
+        <button id="modal-close-btn" style="width:100%; padding:10px; background:#00ffcc; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">確定</button>
+    </div>
+</div>
+
 <script>
-    // 指針錶 Canvas 繪製函數
-    function drawGauge(canvasId, value, maxVal, unitLabel, needleColor) {
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playTone(freq, type, duration) {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playStartSound() {
+        initAudio();
+        playTone(440, 'sine', 0.15);
+    }
+
+    function playSuccessSound() {
+        initAudio();
+        setTimeout(() => playTone(587.33, 'triangle', 0.1), 0);
+        setTimeout(() => playTone(880, 'triangle', 0.25), 120);
+    }
+
+    function drawGauge(canvasId, value, maxVal, needleColor) {
         const canvas = document.getElementById(canvasId);
         const ctx = canvas.getContext('2d');
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        const radius = 55;
+        const radius = 65;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. 繪製外框圓環
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0.75 * Math.PI, 2.25 * Math.PI);
         ctx.strokeStyle = '#283548';
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 7;
         ctx.stroke();
 
-        // 2. 繪製刻度標籤與刻度線
         ctx.fillStyle = '#8a99ad';
-        ctx.font = '9px monospace';
+        ctx.font = '10px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
+        // 刻度自動每 75 單位標記一次 (0, 75, 150, 225, 300)
         for (let i = 0; i <= 4; i++) {
             let val = (maxVal / 4) * i;
             let angle = 0.75 * Math.PI + (i / 4) * 1.5 * Math.PI;
-            let tx = cx + (radius - 12) * Math.cos(angle);
-            let ty = cy + (radius - 12) * Math.sin(angle);
+            let tx = cx + (radius - 14) * Math.cos(angle);
+            let ty = cy + (radius - 14) * Math.sin(angle);
             ctx.fillText(Math.round(val), tx, ty);
         }
 
-        // 3. 繪製指針
         let clampedVal = Math.min(Math.max(value, 0), maxVal);
         let currentAngle = 0.75 * Math.PI + (clampedVal / maxVal) * 1.5 * Math.PI;
         
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        let nx = cx + (radius - 18) * Math.cos(currentAngle);
-        let ny = cy + (radius - 18) * Math.sin(currentAngle);
+        let nx = cx + (radius - 20) * Math.cos(currentAngle);
+        let ny = cy + (radius - 20) * Math.sin(currentAngle);
         ctx.lineTo(nx, ny);
         ctx.strokeStyle = needleColor;
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // 4. 中心圓點
         ctx.beginPath();
         ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
         ctx.fillStyle = '#fff';
         ctx.fill();
-
-        // 5. 下方中央數位數值
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 13px monospace';
-        ctx.fillText(value.toFixed(1) + ' ' + unitLabel, cx, cy + 32);
     }
 
     const gpsStatusEl = document.getElementById('gps-status');
     const gValueEl = document.getElementById('g-value');
     const timerEl = document.getElementById('timer');
     const maxSpeedEl = document.getElementById('max-speed');
+    const digitalSpeedEl = document.getElementById('digital-speed');
     const permBtn = document.getElementById('perm-btn');
     const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
     const targetModeSelect = document.getElementById('target-mode');
     const historyListEl = document.getElementById('history-list');
+
+    const resultModal = document.getElementById('result-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const resTarget = document.getElementById('res-target');
+    const resTime = document.getElementById('res-time');
+    const resSpeed = document.getElementById('res-speed');
 
     let startTime = null;
     let isTesting = false;
     let maxSpeedRecord = 0.0;
+    let currentSpeedVal = 0.0;
     let speedHistory = [];
     let timeHistory = [];
 
-    // 初始化畫一次錶盤
-    drawGauge('speedGauge', 0, 140, 'KM/H', '#ff0055');
-    drawGauge('rpmGauge', 0, 10000, 'RPM', '#f59e0b');
+    const MAX_SPEED_LIMIT = 300; // 設定錶盤極速為 300
+    drawGauge('speedGauge', 0, MAX_SPEED_LIMIT, '#ff0055');
 
-    // Chart.js 速度曲線圖初始化
     const ctxChart = document.getElementById('speedChart').getContext('2d');
     const speedChart = new Chart(ctxChart, {
         type: 'line',
@@ -271,7 +345,7 @@
                 y: { 
                     grid: { color: '#283548' },
                     ticks: { color: '#8a99ad', font: { size: 9 } },
-                    suggestedMax: 110
+                    suggestedMax: 120
                 }
             },
             plugins: { legend: { display: false } }
@@ -279,18 +353,19 @@
     });
 
     permBtn.addEventListener('click', () => {
+        initAudio();
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission().then(response => {
                 if (response === 'granted') {
                     initSensors();
-                    alert('感應器授權成功！');
+                    alert('感應器與音效授權成功！');
                 } else {
                     alert('權限被拒絕');
                 }
             }).catch(console.error);
         } else {
             initSensors();
-            alert('感應器已就緒');
+            alert('感應器與音效已就緒');
         }
     });
 
@@ -302,21 +377,16 @@
             navigator.geolocation.watchPosition(
                 (position) => {
                     let speedMs = position.coords.speed;
-                    let speedKmh = speedMs ? speedMs * 3.6 : 0.0;
+                    currentSpeedVal = speedMs ? speedMs * 3.6 : 0.0;
                     
-                    // 更新最高速
-                    if (speedKmh > maxSpeedRecord) {
-                        maxSpeedRecord = speedKmh;
+                    if (currentSpeedVal > maxSpeedRecord) {
+                        maxSpeedRecord = currentSpeedVal;
                         maxSpeedEl.innerText = maxSpeedRecord.toFixed(1);
                     }
 
-                    // 模擬轉速
-                    let simulatedRpm = Math.min(Math.round(speedKmh * 90), 10000);
-                    if (speedKmh < 1) simulatedRpm = 1200;
-
-                    // 刷新指針錶
-                    drawGauge('speedGauge', speedKmh, 140, '', '#ff0055');
-                    drawGauge('rpmGauge', simulatedRpm, 10000, '', '#f59e0b');
+                    // 更新指針與旁邊的數位數字
+                    drawGauge('speedGauge', currentSpeedVal, MAX_SPEED_LIMIT, '#ff0055');
+                    digitalSpeedEl.innerText = currentSpeedVal.toFixed(1);
 
                     let targetSpeed = parseInt(targetModeSelect.value);
 
@@ -324,11 +394,11 @@
                         let currentTime = ((Date.now() - startTime) / 1000).toFixed(2);
                         timerEl.innerText = currentTime;
 
-                        speedHistory.push(speedKmh.toFixed(1));
+                        speedHistory.push(currentSpeedVal.toFixed(1));
                         timeHistory.push(currentTime);
                         updateChart();
 
-                        if (speedKmh >= targetSpeed && startTime) {
+                        if (currentSpeedVal >= targetSpeed && startTime) {
                             stopTest(currentTime, targetSpeed);
                         }
                     }
@@ -351,6 +421,9 @@
     }
 
     startBtn.addEventListener('click', () => {
+        initAudio();
+        playStartSound();
+        
         isTesting = true;
         startTime = Date.now();
         speedHistory = [];
@@ -360,18 +433,35 @@
         speedChart.update();
         
         timerEl.innerText = '0.00';
-        startBtn.innerText = '測試中...';
-        startBtn.style.background = '#f59e0b';
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if (!isTesting) return;
+        let finalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        let target = targetModeSelect.value;
+        stopTest(finalTime, target);
     });
 
     function stopTest(finalTime, target) {
         isTesting = false;
-        startBtn.innerText = '開始測驗';
-        startBtn.style.background = '#00ffcc';
+        playSuccessSound();
+
+        startBtn.style.display = 'block';
+        stopBtn.style.display = 'none';
         
+        resTarget.innerText = `0 - ${target} KM/H`;
+        resTime.innerText = finalTime;
+        resSpeed.innerText = currentSpeedVal.toFixed(1);
+
+        resultModal.style.display = 'flex';
         saveHistory(finalTime, target);
-        alert(`測試完成！ 0-${target} km/h 成績：${finalTime} 秒`);
     }
+
+    modalCloseBtn.addEventListener('click', () => {
+        resultModal.style.display = 'none';
+    });
 
     function updateChart() {
         speedChart.data.labels = timeHistory;
@@ -380,16 +470,16 @@
     }
 
     function saveHistory(time, target) {
-        let history = JSON.parse(localStorage.getItem('ks_telemetry_history_analog') || '[]');
+        let history = JSON.parse(localStorage.getItem('ks_telemetry_history_300') || '[]');
         let newRecord = { date: new Date().toLocaleTimeString(), target: target, time: time };
         history.unshift(newRecord);
         if (history.length > 5) history.pop();
-        localStorage.setItem('ks_telemetry_history_analog', JSON.stringify(history));
+        localStorage.setItem('ks_telemetry_history_300', JSON.stringify(history));
         renderHistory();
     }
 
     function renderHistory() {
-        let history = JSON.parse(localStorage.getItem('ks_telemetry_history_analog') || '[]');
+        let history = JSON.parse(localStorage.getItem('ks_telemetry_history_300') || '[]');
         if (history.length === 0) {
             historyListEl.innerHTML = '尚無紀錄';
             return;
